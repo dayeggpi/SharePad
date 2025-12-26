@@ -584,7 +584,7 @@
 		<div class="toolbar-spacer"></div>
 		<span class="">Ctrl+S / Command+S to export as file</span>
 		<button class="btn btn-sm" id="themeToggle">Auto</button>
-		<button class="btn btn-sm" id="shareBtn">Share</button>
+		<button class="btn btn-sm" id="copylinkBtn">Share</button>
 	</div>
 
     <div class="content-area">
@@ -663,7 +663,7 @@
     const markdownPreview = document.getElementById('markdownPreview');
     const textContainer = document.getElementById('textContainer');
     const textTools = document.getElementById('textTools');
-    const shareBtn = document.getElementById('shareBtn');
+    const copylinkBtn = document.getElementById('copylinkBtn');
 
     // Drawing elements
     const drawContainer = document.getElementById('drawContainer');
@@ -793,7 +793,7 @@
       }));
 
       // Share
-      shareBtn.addEventListener('click', () => shareNote(currentNoteId));
+      copylinkBtn.addEventListener('click', () => shareNote(currentNoteId));
 
       // Hash change
       addEventListener('hashchange', async () => {
