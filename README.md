@@ -1,4 +1,6 @@
 # SharePad
+[SharePad live (demo)](https://raw.githack.com/dayeggpi/SharePad/main/index.html)
+
 A minimalist sharing tool that lives entirely in your browser and stores everything in the URL hash.<br/>
 Inspired by the amazing [textarea](https://github.com/antonmedv/textarea).<br/>
 
@@ -24,7 +26,7 @@ Extended with :
 
 # How to use
 
-    Open or save index.html on your server
+    Open https://raw.githack.com/dayeggpi/SharePad/main/index.html or save index.html on your server
     Type, draw, or organize stuff
     Marvel at the URL getting longer
     Try to share it
