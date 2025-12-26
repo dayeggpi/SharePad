@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SharePad</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+	:root {
+	  --sidebar-width: 260px;
+	  --toolbar-height: 44px;
+	  --bg: #fafafa;
+	  --bg-sidebar: #f0f0f0;
+	  --bg-hover: #e4e4e4;
+	  --bg-active: #d8d8d8;
+	  --text: #1a1a1a;
+	  --text-muted: #666;
+	  --border: #ddd;
+	  --accent: #0066cc;
+	  --accent-hover: #0052a3;
+	}
+
+	[data-theme="dark"] {
+	  --bg: #0d0d0d;
+	  --bg-sidebar: #141414;
+	  --bg-hover: #1f1f1f;
+	  --bg-active: #292929;
+	  --text: #e8e8e8;
+	  --text-muted: #888;
+	  --border: #2a2a2a;
+	  --accent: #4d9fff;
+	  --accent-hover: #6fb3ff;
+	}
+
+	@media (prefers-color-scheme: dark) {
+	  :root:not([data-theme="light"]) {
+		--bg: #0d0d0d;
+		--bg-sidebar: #141414;
+		--bg-hover: #1f1f1f;
+		--bg-active: #292929;
+		--text: #e8e8e8;
+		--text-muted: #888;
+		--border: #2a2a2a;
+		--accent: #4d9fff;
+		--accent-hover: #6fb3ff;
+	  }
+	}
+
+    html { background-color: var(--bg); color: var(--text); }
+    body { display: flex; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width);
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translateX(0);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 100;
+    }
+    .sidebar.collapsed { transform: translateX(calc(-1 * var(--sidebar-width))); }
+    .sidebar-header {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: var(--bg-hover); border-color: var(--text-muted); }
+    .btn-icon { padding: 6px 8px; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-sm { padding: 4px 8px; font-size: 12px; }
+    .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+	.help-tooltip {
+	  position: relative;
+	  display: inline-flex;
+	}
+	.help-tooltip .help-icon {
+	  width: 20px;
+	  height: 20px;
+	  border-radius: 50%;
+	  background: var(--bg-hover);
+	  border: 1px solid var(--border);
+	  color: var(--text-muted);
+	  font-size: 12px;
+	  cursor: help;
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+	}
+	.help-tooltip .help-icon:hover {
+	  background: var(--bg-active);
+	  color: var(--text);
+	}
+	.help-tooltip .help-content {
+	  display: none;
+	  position: absolute;
+	  top: 100%;
+	  left: 0;
+	  margin-top: 8px;
+	  background: var(--bg-sidebar);
+	  border: 1px solid var(--border);
+	  border-radius: 8px;
+	  padding: 12px 16px;
+	  font-size: 12px;
+	  white-space: nowrap;
+	  z-index: 1000;
+	  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+	}
+	.help-tooltip:hover .help-content {
+	  display: block;
+	}
+	.help-content table {
+	  border-collapse: collapse;
+	}
+	.help-content th {
+	  text-align: left;
+	  padding: 4px 12px 4px 0;
+	  color: var(--text-muted);
+	  font-weight: 500;
+	}
+	.help-content td {
+	  padding: 4px 12px 4px 0;
+	  font-family: ui-monospace, monospace;
+	  color: var(--text);
+	}
+	.help-content td:last-child {
+	  font-family: inherit;
+	}
+
+    .notes-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .note-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+    .note-item:hover { background: var(--bg-hover); }
+    .note-item.active { background: var(--bg-active); }
+    .note-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .note-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .note-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; align-items: center; }
+    .note-type { background: var(--bg-hover); padding: 1px 5px; border-radius: 3px; font-size: 10px; text-transform: uppercase; }
+    .note-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s ease; }
+    .note-item:hover .note-actions, .note-item.active .note-actions { opacity: 1; }
+    .note-action-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 4px;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .note-action-btn:hover { background: var(--bg-hover); color: var(--text); }
+    .note-action-btn.delete:hover { color: #e55; }
+
+    .toggle-sidebar {
+      position: fixed;
+      left: var(--sidebar-width);
+      top: 12px;
+      z-index: 101;
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border);
+      border-left: none;
+      border-radius: 0 6px 6px 0;
+      padding: 8px 6px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      color: var(--text-muted);
+    }
+    .toggle-sidebar:hover { background: var(--bg-hover); color: var(--text); }
+    .sidebar.collapsed ~ .toggle-sidebar { left: 0; border-left: 1px solid var(--border); }
+
+    /* Main */
+    .main {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar.collapsed ~ .main { margin-left: 0; }
+
+    /* Toolbar */
+	.toolbar {
+	  height: var(--toolbar-height);
+	  min-height: var(--toolbar-height);
+	  border-bottom: 1px solid var(--border);
+	  display: flex;
+	  align-items: center;
+	  padding: 0 12px 0 48px; /* Added left padding */
+	  gap: 8px;
+	  background: var(--bg-sidebar);
+	  flex-wrap: wrap;
+	}
+    .toolbar-group { display: flex; align-items: center; gap: 4px; }
+    .toolbar-divider { width: 1px; height: 24px; background: var(--border); margin: 0 8px; }
+    .toolbar-spacer { flex: 1; }
+    .mode-btn { min-width: 70px; justify-content: center; }
+    .mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+	.toolbar label { 
+	  font-size: 13px; 
+	  color: var(--text-muted); 
+	  display: flex; 
+	  align-items: center; 
+	  gap: 6px; 
+	  white-space: nowrap;
+	}
+	.toolbar input[type="color"] { 
+	  width: 28px; 
+	  height: 24px; 
+	  border: 1px solid var(--border); 
+	  border-radius: 4px; 
+	  cursor: pointer; 
+	  padding: 0;
+	  background: none;
+	}
+	.toolbar input[type="range"] { 
+	  width: 60px; 
+	  cursor: pointer; 
+	}
+	.toolbar span {
+	  min-width: 20px;
+	  font-size: 12px;
+	}
+
+    /* Content area */
+	.content-area { flex: 1; position: relative; overflow: auto; width: 100%; max-width: 100%; }
+
+    /* Text Editor */
+    .text-container { display: none; height: 100%; overflow: auto; }
+    .text-container.active { display: block; }
+    article {
+      outline: none;
+      padding: 18px max(18px, calc(50vw - 400px - var(--sidebar-width) / 2));
+      width: 100%;
+      min-height: 100%;
+      font: 16px / 1.6 ui-monospace, 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      tab-size: 4;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+    .sidebar.collapsed ~ .main article { padding: 18px max(18px, calc(50vw - 400px)); }
+
+    /* Markdown Preview */
+    .markdown-preview {
+      display: none;
+      padding: 18px max(18px, calc(50vw - 400px - var(--sidebar-width) / 2));
+      font: 16px / 1.7 system-ui, sans-serif;
+      overflow: auto;
+      height: 100%;
+    }
+    .markdown-preview.active { display: block; }
+    .markdown-preview h1 { font-size: 2em; margin: 0.5em 0; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+    .markdown-preview h2 { font-size: 1.5em; margin: 0.8em 0 0.4em; border-bottom: 1px solid var(--border); padding-bottom: 0.2em; }
+    .markdown-preview h3 { font-size: 1.25em; margin: 0.8em 0 0.4em; }
+    .markdown-preview h4, .markdown-preview h5, .markdown-preview h6 { font-size: 1em; margin: 0.8em 0 0.4em; }
+    .markdown-preview p { margin: 0.8em 0; }
+    .markdown-preview ul, .markdown-preview ol { margin: 0.8em 0; padding-left: 2em; }
+    .markdown-preview li { margin: 0.3em 0; }
+    .markdown-preview code { font-family: ui-monospace, monospace; background: var(--bg-hover); padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }
+    .markdown-preview pre { background: var(--bg-hover); padding: 1em; border-radius: 6px; overflow-x: auto; margin: 1em 0; }
+    .markdown-preview pre code { background: none; padding: 0; }
+    .markdown-preview blockquote { border-left: 4px solid var(--accent); margin: 1em 0; padding: 0.5em 1em; background: var(--bg-hover); }
+    .markdown-preview a { color: var(--accent); }
+    .markdown-preview hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
+    .markdown-preview table { border-collapse: collapse; margin: 1em 0; width: 100%; }
+    .markdown-preview th, .markdown-preview td { border: 1px solid var(--border); padding: 0.5em; text-align: left; }
+    .markdown-preview th { background: var(--bg-hover); }
+    .markdown-preview img { max-width: 100%; }
+	.markdown-preview input[type="checkbox"] {
+	  margin: 0.3em 0;
+	  cursor: pointer;
+	}
+	.markdown-preview .task-item {
+	  list-style: none;
+	  margin: 0.3em 0;
+	}
+
+    /* Drawing Board */
+	.draw-container { display: none; height: 100%; flex-direction: column; position: relative; }
+	.draw-container.active { display: flex; }
+    .draw-toolbar {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: var(--bg);
+    }
+    .draw-toolbar label { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .draw-toolbar input[type="color"] { width: 32px; height: 26px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; padding: 0; }
+    .draw-toolbar input[type="range"] { width: 80px; cursor: pointer; }
+	.draw-canvas-wrapper { 
+	  flex: 1; 
+	  overflow: auto; 
+	  display: flex; 
+	  align-items: flex-start; 
+	  justify-content: flex-start; 
+	  background: var(--bg-hover); 
+	  position: absolute;
+	  top: 0;
+	  left: 0;
+	  right: 0;
+	  bottom: 0;
+	}
+	#drawCanvas { background: #fff; cursor: crosshair; image-rendering: pixelated; }
+
+    /* Kanban Board */
+    .kanban-container { display: none; height: 100%; overflow-x: auto; padding: 16px; gap: 16px; }
+    .kanban-container.active { display: flex; }
+    .kanban-column {
+      min-width: 280px;
+      max-width: 280px;
+      background: var(--bg-sidebar);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      max-height: 100%;
+    }
+    .kanban-column-header {
+      padding: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .kanban-column-header input {
+      background: transparent;
+      border: none;
+      font: inherit;
+      color: var(--text);
+      width: 100%;
+      outline: none;
+    }
+    .kanban-cards { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .kanban-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      cursor: grab;
+      transition: box-shadow 0.15s;
+    }
+    .kanban-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .kanban-card.dragging { opacity: 0.5; }
+    .kanban-card-text {
+      font-size: 14px;
+      background: transparent;
+      border: none;
+      width: 100%;
+      resize: none;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      min-height: 40px;
+    }
+    .kanban-card-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .kanban-add-card {
+      padding: 8px 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.15s;
+      border-radius: 0 0 8px 8px;
+    }
+    .kanban-add-card:hover { background: var(--bg-hover); color: var(--text); }
+    .kanban-add-column {
+      min-width: 280px;
+      max-width: 280px;
+      background: var(--bg-hover);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      transition: background 0.15s;
+      min-height: 100px;
+    }
+    .kanban-add-column:hover { background: var(--bg-active); color: var(--text); }
+    .drop-zone { border: 2px dashed var(--accent); background: rgba(77, 159, 255, 0.1); border-radius: 6px; min-height: 60px; }
+	.kanban-column-header.done { background: #22c55e20; }
+	.kanban-column-header.done input { color: #22c55e; }
+
+	.kanban-column.dragging { opacity: 0.5; }
+	.kanban-column-drop-zone { 
+	  min-width: 20px; 
+	  min-height: 100px; 
+	  border: 2px dashed var(--accent); 
+	  background: rgba(77, 159, 255, 0.1); 
+	  border-radius: 8px; 
+	  margin: 0 8px;
+	}
+
+    /* QR Code */
+    .qr-container { display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
+    .qr-container.active { display: flex; }
+    #qrCanvas { background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    .qr-info { text-align: center; color: var(--text-muted); font-size: 14px; max-width: 400px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+    }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+    .modal {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      width: 90%;
+      max-width: 360px;
+      transform: scale(0.95);
+      transition: transform 0.2s ease;
+    }
+    .modal-overlay.active .modal { transform: scale(1); }
+    .modal-title { font-size: 16px; font-weight: 500; margin-bottom: 16px; }
+    .modal input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      outline: none;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .modal select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      outline: none;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(calc(-1 * var(--sidebar-width))); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .toggle-sidebar { left: 0; border-left: 1px solid var(--border); }
+      .toggle-sidebar svg { transform: rotate(180deg); }
+      .sidebar.open ~ .toggle-sidebar { left: var(--sidebar-width); border-left: none; }
+      .sidebar.open ~ .toggle-sidebar svg { transform: rotate(0deg); }
+      article, .markdown-preview { padding: 18px; padding-left: 48px; }
+      .note-actions { opacity: 1; }
+      .toolbar { padding: 8px; overflow-x: auto; }
+      .mode-btn { min-width: 60px; font-size: 12px; padding: 4px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">SharePad</span>
+      <button class="btn btn-icon" id="newNoteBtn" title="New note">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="notes-list" id="notesList"></div>
+  </aside>
+
+  <button class="toggle-sidebar" id="toggleSidebar" title="Toggle sidebar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+  </button>
+
+  <main class="main">
+	<div class="toolbar" id="toolbar">
+	  
+		<div class="toolbar-group" id="textTools">
+		  <button class="btn btn-sm" id="markdownToggle">Markdown: Off</button>
+		  <button class="btn btn-sm" id="showQRBtn">Show QR</button>
+		  <div class="help-tooltip">
+			<span class="help-icon">?</span>
+			<div class="help-content">
+			  <table>
+				<tr><th>Syntax</th><th>Result</th></tr>
+				<tr><td># Heading 1</td><td>Large heading</td></tr>
+				<tr><td>## Heading 2</td><td>Medium heading</td></tr>
+				<tr><td>### Heading 3</td><td>Small heading</td></tr>
+				<tr><td>**bold**</td><td><strong>bold</strong></td></tr>
+				<tr><td>*italic*</td><td><em>italic</em></td></tr>
+				<tr><td>~~strikethrough~~</td><td><del>strikethrough</del></td></tr>
+				<tr><td>`inline code`</td><td><code>inline code</code></td></tr>
+				<tr><td>```code block```</td><td>Code block</td></tr>
+				<tr><td>[link](url)</td><td>Hyperlink</td></tr>
+				<tr><td>![alt](image-url)</td><td>Image</td></tr>
+				<tr><td>> quote</td><td>Blockquote</td></tr>
+				<tr><td>- item</td><td>Bullet list</td></tr>
+				<tr><td>- [ ] task</td><td>☐ Unchecked</td></tr>
+				<tr><td>- [x] task</td><td>☑ Checked</td></tr>				
+				<tr><td>1. item</td><td>Numbered list</td></tr>
+				<tr><td>---</td><td>Horizontal rule</td></tr>
+			  </table>
+			</div>
+		  </div>
+		</div>	  
+	<div class="toolbar-group" id="drawTools" style="display:none;">
+	  <label>Color: <input type="color" id="drawColor" value="#000000"></label>
+	  <label>Size: <input type="range" id="drawSize" min="1" max="50" value="4"><span id="drawSizeVal">4</span></label>
+	  <label>Zoom: <input type="range" id="drawZoom" min="1" max="20" value="1"><span id="drawZoomVal">1x</span></label>
+	  <button class="btn btn-sm" id="eraserBtn">Eraser</button>
+	  <button class="btn btn-sm" id="drawClear">Clear</button>
+	</div>
+	<div class="toolbar-group" id="qrTools" style="display:none;">
+	  <button class="btn btn-sm" id="backFromQRBtn">Back to Text</button>
+	  <button class="btn btn-sm" id="downloadQRBtn">Download QR</button>
+	</div>
+		<div class="toolbar-spacer"></div>
+		<span class="">Ctrl+S / Command+S to export as file</span>
+		<button class="btn btn-sm" id="themeToggle">Auto</button>
+		<button class="btn btn-sm" id="shareBtn">Share</button>
+	</div>
+
+    <div class="content-area">
+      <!-- Text Mode -->
+      <div class="text-container active" id="textContainer">
+        <article contenteditable="plaintext-only" spellcheck id="article"></article>
+      </div>
+      <div class="markdown-preview" id="markdownPreview"></div>
+
+      <!-- Draw Mode -->
+	<div class="draw-container" id="drawContainer">
+	  <div class="draw-canvas-wrapper" id="canvasWrapper">
+		<canvas id="drawCanvas" width="400" height="300"></canvas>
+	  </div>
+	</div>
+
+      <!-- Kanban Mode -->
+      <div class="kanban-container" id="kanbanContainer"></div>
+
+      <!-- QR Mode -->
+		<div class="qr-container" id="qrContainer">
+		  <canvas id="qrCanvas"></canvas>
+		  <div class="qr-info">
+			<p>This QR code contains your text content.</p>
+		  </div>
+		</div>
+    </div>
+  </main>
+
+  <!-- New Note Modal -->
+  <div class="modal-overlay" id="newNoteModal">
+    <div class="modal">
+      <div class="modal-title">New Note</div>
+      <input type="text" id="newNoteName" placeholder="Enter note name..." autocomplete="off">
+      <select id="newNoteType">
+        <option value="text">Text Note</option>
+        <option value="draw">Drawing</option>
+        <option value="kanban">Kanban Board</option>
+      </select>
+      <div class="modal-actions">
+        <button class="btn" id="cancelNewNote">Cancel</button>
+        <button class="btn btn-primary" id="confirmNewNote">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div class="modal-overlay" id="renameModal">
+    <div class="modal">
+      <div class="modal-title">Rename Note</div>
+      <input type="text" id="renameInput" placeholder="Enter new name..." autocomplete="off">
+      <div class="modal-actions">
+        <button class="btn" id="cancelRename">Cancel</button>
+        <button class="btn btn-primary" id="confirmRename">Rename</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DOM Elements
+    const article = document.getElementById('article');
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggleSidebar');
+    const notesList = document.getElementById('notesList');
+    const newNoteBtn = document.getElementById('newNoteBtn');
+    const newNoteModal = document.getElementById('newNoteModal');
+    const newNoteName = document.getElementById('newNoteName');
+    const newNoteType = document.getElementById('newNoteType');
+    const cancelNewNote = document.getElementById('cancelNewNote');
+    const confirmNewNote = document.getElementById('confirmNewNote');
+    const renameModal = document.getElementById('renameModal');
+    const renameInput = document.getElementById('renameInput');
+    const cancelRename = document.getElementById('cancelRename');
+    const confirmRename = document.getElementById('confirmRename');
+    const markdownToggle = document.getElementById('markdownToggle');
+    const markdownPreview = document.getElementById('markdownPreview');
+    const textContainer = document.getElementById('textContainer');
+    const textTools = document.getElementById('textTools');
+    const shareBtn = document.getElementById('shareBtn');
+
+    // Drawing elements
+    const drawContainer = document.getElementById('drawContainer');
+    const drawCanvas = document.getElementById('drawCanvas');
+    const drawCtx = drawCanvas.getContext('2d', { willReadFrequently: true });
+    const drawColor = document.getElementById('drawColor');
+    const drawSize = document.getElementById('drawSize');
+    const drawZoom = document.getElementById('drawZoom');
+    const drawSizeVal = document.getElementById('drawSizeVal');
+    const drawZoomVal = document.getElementById('drawZoomVal');
+    const drawClear = document.getElementById('drawClear');
+    const eraserBtn = document.getElementById('eraserBtn');
+    const canvasWrapper = document.getElementById('canvasWrapper');
+    
+    // Initialize canvas with white background
+    drawCtx.fillStyle = '#ffffff';
+    drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+
+    // Kanban elements
+    const kanbanContainer = document.getElementById('kanbanContainer');
+
+    // QR elements
+    const qrContainer = document.getElementById('qrContainer');
+    const qrCanvas = document.getElementById('qrCanvas');
+    const downloadQRBtn = document.getElementById('downloadQRBtn');
+    const showQRBtn = document.getElementById('showQRBtn');
+    const backFromQRBtn = document.getElementById('backFromQRBtn');
+
+    // State
+    let notes = [];
+    let currentNoteId = null;
+    let renameNoteId = null;
+    let currentMode = 'text';
+    let markdownEnabled = false;
+    let isDrawing = false;
+    let lastX = 0, lastY = 0;
+    let eraserMode = false;
+    let draggedCard = null;
+	let theme = localStorage.getItem('sharepad_theme') || 'auto';
+	
+    // Initialize
+    document.addEventListener('DOMContentLoaded', init);
+
+	async function init() {
+	  loadNotes();
+	  if (location.hash && location.hash.length > 1) {
+		await loadFromHash();
+	  } else if (notes.length > 0) {
+		const lastActiveId = localStorage.getItem('lastActiveNote');
+		const noteToLoad = notes.find(n => n.id === lastActiveId) || notes[0];
+		await selectNote(noteToLoad.id);
+	  } else {
+		const note = createNote('Untitled', 'text', true);
+		currentNoteId = note.id;
+		localStorage.setItem('lastActiveNote', note.id);
+	  }
+	  applyTheme();
+	  renderNotesList();
+	  setupEventListeners();
+	}
+
+    function setupEventListeners() {
+      // Mode buttons
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+      });
+
+      // Markdown toggle
+      markdownToggle.addEventListener('click', toggleMarkdown);
+
+      // Drawing events
+      drawCanvas.addEventListener('mousedown', startDraw);
+      drawCanvas.addEventListener('mousemove', draw);
+      drawCanvas.addEventListener('mouseup', stopDraw);
+      drawCanvas.addEventListener('mouseout', stopDraw);
+      drawCanvas.addEventListener('touchstart', handleTouch);
+      drawCanvas.addEventListener('touchmove', handleTouch);
+      drawCanvas.addEventListener('touchend', stopDraw);
+      drawSize.addEventListener('input', () => { drawSizeVal.textContent = drawSize.value; });
+      drawZoom.addEventListener('input', updateZoom);
+      drawClear.addEventListener('click', clearCanvas);
+      eraserBtn.addEventListener('click', toggleEraser);
+
+	  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+		
+      // Sidebar toggle
+      toggleBtn.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.toggle('open');
+        } else {
+          sidebar.classList.toggle('collapsed');
+          toggleBtn.querySelector('svg').style.transform = sidebar.classList.contains('collapsed') ? 'rotate(180deg)' : '';
+        }
+      });
+
+      // New note
+      newNoteBtn.addEventListener('click', () => {
+        newNoteModal.classList.add('active');
+        newNoteName.value = '';
+        newNoteType.value = 'text';
+        newNoteName.focus();
+      });
+      cancelNewNote.addEventListener('click', () => newNoteModal.classList.remove('active'));
+      confirmNewNote.addEventListener('click', () => {
+        createNote(newNoteName.value.trim() || 'Untitled', newNoteType.value);
+        newNoteModal.classList.remove('active');
+      });
+      newNoteName.addEventListener('keydown', e => { if (e.key === 'Enter') confirmNewNote.click(); if (e.key === 'Escape') cancelNewNote.click(); });
+      newNoteModal.addEventListener('click', e => { if (e.target === newNoteModal) newNoteModal.classList.remove('active'); });
+
+      // Rename
+      cancelRename.addEventListener('click', () => { renameModal.classList.remove('active'); renameNoteId = null; });
+      confirmRename.addEventListener('click', () => {
+        if (renameNoteId) renameNote(renameNoteId, renameInput.value.trim());
+        renameModal.classList.remove('active');
+        renameNoteId = null;
+      });
+      renameInput.addEventListener('keydown', e => { if (e.key === 'Enter') confirmRename.click(); if (e.key === 'Escape') cancelRename.click(); });
+      renameModal.addEventListener('click', e => { if (e.target === renameModal) { renameModal.classList.remove('active'); renameNoteId = null; } });
+
+      // Auto-save text
+      article.addEventListener('input', debounce(500, async () => {
+        await saveCurrentNote();
+        renderNotesList();
+        updateTitle();
+        if (markdownEnabled) renderMarkdown();
+      }));
+
+      // Share
+      shareBtn.addEventListener('click', () => shareNote(currentNoteId));
+
+      // Hash change
+      addEventListener('hashchange', async () => {
+        if (location.hash && location.hash.length > 1) await loadFromHash();
+      });
+
+      // Keyboard shortcuts
+      addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 's') {
+          e.preventDefault();
+          saveToDisk();
+        }
+      });
+
+      // QR buttons
+      showQRBtn.addEventListener('click', () => {
+        qrContainer.classList.add('active');
+        textContainer.classList.remove('active');
+        markdownPreview.classList.remove('active');
+        document.getElementById('textTools').style.display = 'none';
+        document.getElementById('qrTools').style.display = '';
+        generateQR();
+      });
+      
+      backFromQRBtn.addEventListener('click', () => {
+        qrContainer.classList.remove('active');
+        if (markdownEnabled) {
+          markdownPreview.classList.add('active');
+        } else {
+          textContainer.classList.add('active');
+        }
+        document.getElementById('textTools').style.display = '';
+        document.getElementById('qrTools').style.display = 'none';
+      });
+      
+      downloadQRBtn.addEventListener('click', () => {
+        const qrEl = document.getElementById('qrCanvas');
+        const svg = qrEl.querySelector('svg');
+        if (svg) {
+          const svgData = new XMLSerializer().serializeToString(svg);
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            const link = document.createElement('a');
+            link.download = 'qrcode.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+          };
+          img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        }
+      });
+    }
+
+
+	function toggleTheme() {
+	  const themes = ['auto', 'light', 'dark'];
+	  const idx = themes.indexOf(theme);
+	  theme = themes[(idx + 1) % themes.length];
+	  localStorage.setItem('sharepad_theme', theme);
+	  applyTheme();
+	}
+
+	function applyTheme() {
+	  const btn = document.getElementById('themeToggle');
+	  btn.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+	  
+	  if (theme === 'auto') {
+		document.documentElement.removeAttribute('data-theme');
+	  } else {
+		document.documentElement.setAttribute('data-theme', theme);
+	  }
+	}
+
+
+    // Mode switching
+	function switchMode(mode) {
+	  currentMode = mode;
+	  
+	  textContainer.classList.toggle('active', mode === 'text' && !markdownEnabled);
+	  markdownPreview.classList.toggle('active', mode === 'text' && markdownEnabled);
+	  drawContainer.classList.toggle('active', mode === 'draw');
+	  kanbanContainer.classList.toggle('active', mode === 'kanban');
+	  qrContainer.classList.toggle('active', mode === 'qr');
+	  
+	  // Show/hide relevant toolbar sections
+	  const textTools = document.getElementById('textTools');
+	  const drawTools = document.getElementById('drawTools');
+	  const qrTools = document.getElementById('qrTools');
+	  
+	  if (textTools) textTools.style.display = mode === 'text' ? '' : 'none';
+	  if (drawTools) drawTools.style.display = mode === 'draw' ? '' : 'none';
+	  if (qrTools) qrTools.style.display = mode === 'qr' ? '' : 'none';
+	  
+	  if (mode === 'qr') generateQR();
+	  if (mode === 'draw') requestAnimationFrame(() => { updateZoom(); redrawCanvas(); });
+	}
+
+    // Markdown
+    function toggleMarkdown() {
+      markdownEnabled = !markdownEnabled;
+      markdownToggle.textContent = `Markdown: ${markdownEnabled ? 'On' : 'Off'}`;
+      markdownToggle.classList.toggle('active', markdownEnabled);
+      if (currentMode === 'text') {
+        textContainer.classList.toggle('active', !markdownEnabled);
+        markdownPreview.classList.toggle('active', markdownEnabled);
+        if (markdownEnabled) renderMarkdown();
+      }
+    }
+
+    function renderMarkdown() {
+      const text = article.textContent;
+      markdownPreview.innerHTML = parseMarkdown(text);
+    }
+
+    function parseMarkdown(text) {
+      let html = escapeHtml(text);
+      
+      // Code blocks
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+      
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      
+      // Headers
+      html = html.replace(/^###### (.+)$/gm, '<h6>$1</h6>');
+      html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
+      html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+      
+      // Bold and italic
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+      
+      // Strikethrough
+      html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+      
+      // Blockquotes
+      html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+      
+      // Horizontal rule
+      html = html.replace(/^---$/gm, '<hr>');
+      html = html.replace(/^\*\*\*$/gm, '<hr>');
+      
+      // Links
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+      
+      // Images
+      html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+      
+	// Checkboxes
+	html = html.replace(/^[\*\-] \[x\] (.+)$/gim, '<li class="task-item"><input type="checkbox" checked disabled> $1</li>');
+	html = html.replace(/^[\*\-] \[ \] (.+)$/gm, '<li class="task-item"><input type="checkbox" disabled> $1</li>');
+	  
+      // Unordered lists
+      html = html.replace(/^[\*\-] (.+)$/gm, '<li>$1</li>');
+      html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+      
+      // Ordered lists
+      html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+      
+      // Paragraphs
+      html = html.replace(/\n\n/g, '</p><p>');
+      html = '<p>' + html + '</p>';
+      html = html.replace(/<p><\/p>/g, '');
+      html = html.replace(/<p>(<h[1-6]>)/g, '$1');
+      html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+      html = html.replace(/<p>(<ul>)/g, '$1');
+      html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+      html = html.replace(/<p>(<blockquote>)/g, '$1');
+      html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+      html = html.replace(/<p>(<pre>)/g, '$1');
+      html = html.replace(/(<\/pre>)<\/p>/g, '$1');
+      html = html.replace(/<p>(<hr>)<\/p>/g, '$1');
+      
+      return html;
+    }
+
+    // Drawing
+    let canvasData = null;
+
+
+
+
+function startDraw(e) {
+  isDrawing = true;
+  const pos = getCanvasPos(e);
+  lastX = pos.x;
+  lastY = pos.y;
+  
+  const size = parseInt(drawSize.value);
+  const color = eraserMode ? '#ffffff' : drawColor.value;
+  
+  // Ensure context is ready
+  drawCtx.globalCompositeOperation = 'source-over';
+  
+  // For single pixels, use fillRect for crisp rendering
+  if (size <= 2) {
+    drawCtx.fillStyle = color;
+    drawCtx.fillRect(pos.x, pos.y, size, size);
+  } else {
+    drawCtx.fillStyle = color;
+    drawCtx.beginPath();
+    drawCtx.arc(pos.x, pos.y, size / 2, 0, Math.PI * 2);
+    drawCtx.fill();
+  }
+  saveCanvasState();
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const pos = getCanvasPos(e);
+  const size = parseInt(drawSize.value);
+  const color = eraserMode ? '#ffffff' : drawColor.value;
+  
+  // Ensure context is ready
+  drawCtx.globalCompositeOperation = 'source-over';
+  drawCtx.strokeStyle = color;
+  drawCtx.lineWidth = size;
+  drawCtx.lineCap = 'round';
+  drawCtx.lineJoin = 'round';
+  
+  drawCtx.beginPath();
+  drawCtx.moveTo(lastX, lastY);
+  drawCtx.lineTo(pos.x, pos.y);
+  drawCtx.stroke();
+  
+  lastX = pos.x;
+  lastY = pos.y;
+}
+
+
+
+
+	function stopDraw() {
+	  if (isDrawing) {
+		isDrawing = false;
+		saveCanvasState();
+		debouncedSave();
+	  }
+	}
+
+
+
+    function handleTouch(e) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      drawCanvas.dispatchEvent(mouseEvent);
+    }
+
+	function getCanvasPos(e) {
+	  const rect = drawCanvas.getBoundingClientRect();
+	  const zoom = parseInt(drawZoom.value);
+	  const x = (e.clientX - rect.left) / zoom;
+	  const y = (e.clientY - rect.top) / zoom;
+	  return { x: Math.floor(x), y: Math.floor(y) };
+	}
+
+
+    function updateZoom() {
+      const zoom = parseInt(drawZoom.value);
+      drawZoomVal.textContent = zoom + 'x';
+      drawCanvas.style.width = drawCanvas.width * zoom + 'px';
+      drawCanvas.style.height = drawCanvas.height * zoom + 'px';
+    }
+
+    function clearCanvas() {
+      if (confirm('Clear the canvas?')) {
+        drawCtx.fillStyle = '#ffffff';
+        drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+        saveCanvasState();
+        debouncedSave();
+      }
+    }
+
+    function toggleEraser() {
+      eraserMode = !eraserMode;
+      eraserBtn.textContent = `Eraser: ${eraserMode ? 'On' : 'Off'}`;
+      eraserBtn.classList.toggle('active', eraserMode);
+    }
+
+    function redrawCanvas() {
+      if (canvasData) {
+        const img = new Image();
+        img.onload = () => {
+          drawCtx.drawImage(img, 0, 0);
+        };
+        img.src = canvasData;
+      }
+    }
+
+    function saveCanvasState() {
+      canvasData = drawCanvas.toDataURL('image/png');
+    }
+
+    const debouncedSave = debounce(500, async () => {
+      await saveCurrentNote();
+      renderNotesList();
+    });
+
+    // Kanban
+    let kanbanData = { columns: [] };
+
+	function renderKanban() {
+	  kanbanContainer.innerHTML = '';
+	  kanbanData.columns.forEach((col, colIdx) => {
+		const column = document.createElement('div');
+		column.className = 'kanban-column';
+		column.draggable = true;
+		column.dataset.colIdx = colIdx;
+		
+		const headerClass = col.color ? 'style="background:' + col.color + '20"' : '';
+		const titleStyle = col.color ? 'style="color:' + col.color + '"' : '';
+		
+		column.innerHTML = `
+		  <div class="kanban-column-header" ${headerClass}>
+			<input type="text" value="${escapeHtml(col.title)}" data-col="${colIdx}" ${titleStyle}>
+			<button class="note-action-btn delete" data-col="${colIdx}" title="Delete column">
+			  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<line x1="18" y1="6" x2="6" y2="18"></line>
+				<line x1="6" y1="6" x2="18" y2="18"></line>
+			  </svg>
+			</button>
+		  </div>
+		  <div class="kanban-cards" data-col="${colIdx}"></div>
+		  <div class="kanban-add-card" data-col="${colIdx}">+ Add card</div>
+		`;
+        
+        const cardsContainer = column.querySelector('.kanban-cards');
+        col.cards.forEach((card, cardIdx) => {
+          const cardEl = createCardElement(card, colIdx, cardIdx);
+          cardsContainer.appendChild(cardEl);
+        });
+
+        // Column title change
+        column.querySelector('input').addEventListener('change', e => {
+          kanbanData.columns[colIdx].title = e.target.value;
+          debouncedSave();
+        });
+
+        // Delete column
+        column.querySelector('.delete').addEventListener('click', () => {
+          if (confirm('Delete this column?')) {
+            kanbanData.columns.splice(colIdx, 1);
+            renderKanban();
+            debouncedSave();
+          }
+        });
+
+        // Add card
+        column.querySelector('.kanban-add-card').addEventListener('click', () => {
+          kanbanData.columns[colIdx].cards.push({ text: '' });
+          renderKanban();
+          debouncedSave();
+        });
+
+        // Drop zone
+        cardsContainer.addEventListener('dragover', e => {
+          e.preventDefault();
+          cardsContainer.classList.add('drop-zone');
+        });
+        cardsContainer.addEventListener('dragleave', () => {
+          cardsContainer.classList.remove('drop-zone');
+        });
+        cardsContainer.addEventListener('drop', e => {
+          e.preventDefault();
+          cardsContainer.classList.remove('drop-zone');
+          if (draggedCard) {
+            const { fromCol, fromIdx } = draggedCard;
+            const card = kanbanData.columns[fromCol].cards.splice(fromIdx, 1)[0];
+            kanbanData.columns[colIdx].cards.push(card);
+            renderKanban();
+            debouncedSave();
+          }
+        });
+
+        kanbanContainer.appendChild(column);
+		// Column drag events
+		column.addEventListener('dragstart', e => {
+		  if (e.target.closest('.kanban-card')) return; // Ignore card drags
+		  e.dataTransfer.setData('text/column', colIdx.toString());
+		  column.classList.add('dragging');
+		});
+
+		column.addEventListener('dragend', () => {
+		  column.classList.remove('dragging');
+		  document.querySelectorAll('.kanban-column-drop-zone').forEach(z => z.remove());
+		});
+
+		column.addEventListener('dragover', e => {
+		  const colData = e.dataTransfer.types.includes('text/column');
+		  if (!colData) return;
+		  e.preventDefault();
+		});
+
+		column.addEventListener('drop', e => {
+		  const fromIdx = e.dataTransfer.getData('text/column');
+		  if (fromIdx === '') return;
+		  e.preventDefault();
+		  e.stopPropagation();
+		  
+		  const from = parseInt(fromIdx);
+		  const to = parseInt(column.dataset.colIdx);
+		  if (from === to) return;
+		  
+		  const [moved] = kanbanData.columns.splice(from, 1);
+		  kanbanData.columns.splice(to > from ? to : to, 0, moved);
+		  debouncedSave();
+		  renderKanban();
+		});		
+      });
+
+      // Add column button
+      const addCol = document.createElement('div');
+      addCol.className = 'kanban-add-column';
+      addCol.textContent = '+ Add Column';
+      addCol.addEventListener('click', () => {
+        kanbanData.columns.push({ title: 'New Column', cards: [] });
+        renderKanban();
+        debouncedSave();
+      });
+
+	addCol.addEventListener('dragover', e => {
+	  if (e.dataTransfer.types.includes('text/column')) {
+		e.preventDefault();
+	  }
+	});
+
+	addCol.addEventListener('drop', e => {
+	  const fromIdx = e.dataTransfer.getData('text/column');
+	  if (fromIdx === '') return;
+	  e.preventDefault();
+	  
+	  const from = parseInt(fromIdx);
+	  const [moved] = kanbanData.columns.splice(from, 1);
+	  kanbanData.columns.push(moved);
+	  debouncedSave();
+	  renderKanban();
+	});
+	  
+      kanbanContainer.appendChild(addCol);
+    }
+
+    function createCardElement(card, colIdx, cardIdx) {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'kanban-card';
+      cardEl.draggable = true;
+      cardEl.innerHTML = `
+        <textarea class="kanban-card-text" placeholder="Enter text...">${escapeHtml(card.text)}</textarea>
+        <div class="kanban-card-actions">
+          <button class="note-action-btn delete" title="Delete card">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      `;
+
+      cardEl.querySelector('textarea').addEventListener('input', e => {
+        kanbanData.columns[colIdx].cards[cardIdx].text = e.target.value;
+        e.target.style.height = 'auto';
+        e.target.style.height = e.target.scrollHeight + 'px';
+        debouncedSave();
+      });
+
+      cardEl.querySelector('.delete').addEventListener('click', () => {
+        kanbanData.columns[colIdx].cards.splice(cardIdx, 1);
+        renderKanban();
+        debouncedSave();
+      });
+
+      cardEl.addEventListener('dragstart', () => {
+        cardEl.classList.add('dragging');
+        draggedCard = { fromCol: colIdx, fromIdx: cardIdx };
+      });
+      cardEl.addEventListener('dragend', () => {
+        cardEl.classList.remove('dragging');
+        draggedCard = null;
+      });
+
+      return cardEl;
+    }
+	
+	// QR Code library (minified)
+	var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":" width=\""+g+"px\" height=\""+g+"px\"",l+=" viewBox=\"0 0 "+g+" "+g+"\" ",l+=' preserveAspectRatio="xMinYMin meet"',l+=">",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"};return f};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i};return t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)};
+
+	function generateQR() {
+	  const text = article.textContent || 'Empty';
+	  const qrDiv = document.getElementById('qrCanvas');
+	  
+	  try {
+		const qr = qrcode(0, 'L');
+		qr.addData(text, 'Byte');
+		qr.make();
+		
+		// Replace canvas with a div for SVG
+		qrDiv.outerHTML = '<div id="qrCanvas" style="background:#fff;padding:16px;border-radius:8px;">' + qr.createSvgTag({cellSize: 6, margin: 0}) + '</div>';
+	  } catch (e) {
+		console.error('QR generation failed:', e);
+	  }
+	}
+    // Notes management
+    function loadNotes() {
+      try {
+        notes = JSON.parse(localStorage.getItem('sharepad_notes') || '[]');
+      } catch (e) {
+        notes = [];
+      }
+    }
+
+    function saveNotes() {
+      try {
+        localStorage.setItem('sharepad_notes', JSON.stringify(notes));
+      } catch (e) {}
+    }
+
+    function createNote(name, type = 'text', silent = false) {
+      const id = 'note_' + Date.now();
+      const note = {
+        id,
+        name: name || 'Untitled',
+        type,
+        hash: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      notes.unshift(note);
+      saveNotes();
+      if (!silent) {
+        renderNotesList();
+        selectNote(id);
+      }
+      return note;
+    }
+
+	function deleteNote(id) {
+	  const index = notes.findIndex(n => n.id === id);
+	  if (index === -1) return;
+	  
+	  notes.splice(index, 1);
+	  saveNotes();
+	  
+	  if (notes.length === 0) {
+		// Create new empty note
+		createNote('Untitled', 'text', true);
+		selectNote(notes[0].id);
+	  } else if (currentNoteId === id) {
+		selectNote(notes[0].id);
+	  }
+	  
+	  renderNotesList();
+	}
+
+    function renameNote(id, newName) {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        note.name = newName || 'Untitled';
+        note.updatedAt = Date.now();
+        saveNotes();
+        renderNotesList();
+        updateTitle();
+      }
+    }
+
+	async function selectNote(id) {
+	  // Save current note first if exists
+	  if (currentNoteId) {
+		await saveCurrentNote();
+	  }
+	  
+	  // Don't re-select if already selected
+	  if (currentNoteId === id) {
+		return;
+	  }
+	  
+	  currentNoteId = id;
+	  localStorage.setItem('lastActiveNote', id);
+	  
+	  // Fetch note AFTER saving (hash may have been updated by saveCurrentNote)
+	  const note = notes.find(n => n.id === id);
+	  
+	  if (note) {
+		const noteType = note.type || 'text';
+		switchMode(noteType);
+		
+		if (note.hash) {
+		  try {
+			await loadContent(note.hash, noteType);
+			history.replaceState({}, '', '#' + note.hash);
+		  } catch (e) {
+			resetContent(noteType);
+			history.replaceState({}, '', location.pathname);
+		  }
+		} else {
+		  resetContent(noteType);
+		  history.replaceState({}, '', location.pathname);
+		}
+	  }
+	  
+	  renderNotesList();
+	  updateTitle();
+	  if (currentMode === 'text') article.focus();
+	}
+
+	function resetContent(type) {
+	  if (type === 'text') {
+		article.textContent = '';
+		if (markdownEnabled) renderMarkdown();
+	  } else if (type === 'draw') {
+		// Size canvas to fill available space
+		const wrapper = document.getElementById('canvasWrapper');
+		const w = Math.max(400, wrapper.clientWidth - 40);
+		const h = Math.max(300, wrapper.clientHeight - 40);
+		drawCanvas.width = w;
+		drawCanvas.height = h;
+		drawCtx.fillStyle = '#ffffff';
+		drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+		canvasData = null;
+		updateZoom();
+	  } else if (type === 'kanban') {
+		kanbanData = { columns: [{ title: 'To Do', cards: [], color: null }, { title: 'In Progress', cards: [], color: null }, { title: 'Done', cards: [], color: '#22c55e' }] };
+		renderKanban();
+	  }
+	}
+
+    async function loadContent(hash, type) {
+      const content = await decompress(hash);
+      
+      if (type === 'text') {
+        const parts = content.split('\x00');
+        article.textContent = parts[0];
+        if (markdownEnabled) renderMarkdown();
+      } else if (type === 'draw') {
+        const img = new Image();
+        img.onload = () => {
+          drawCanvas.width = img.width || 400;
+          drawCanvas.height = img.height || 300;
+          drawCtx.drawImage(img, 0, 0);
+          saveCanvasState();
+          updateZoom();
+        };
+        img.src = content;
+      } else if (type === 'kanban') {
+        try {
+          kanbanData = JSON.parse(content);
+        } catch (e) {
+          kanbanData = { columns: [] };
+        }
+        renderKanban();
+      }
+    }
+
+    async function saveCurrentNote() {
+      if (!currentNoteId) return;
+      const note = notes.find(n => n.id === currentNoteId);
+      if (!note) return;
+      
+      const type = note.type || 'text';
+      let content = '';
+      
+      if (type === 'text') {
+        content = article.textContent;
+      } else if (type === 'draw') {
+        content = canvasData || '';
+      } else if (type === 'kanban') {
+        content = JSON.stringify(kanbanData);
+      }
+      
+      if (content) {
+        note.hash = await compress(content);
+        note.updatedAt = Date.now();
+        saveNotes();
+        history.replaceState({}, '', '#' + note.hash);
+      }
+    }
+
+    async function shareNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      if (id === currentNoteId) await saveCurrentNote();
+      if (!note.hash) {
+        alert('Cannot share empty note');
+        return;
+      }
+      const url = location.origin + location.pathname + '#' + note.hash;
+      try {
+        await navigator.clipboard.writeText(url);
+        alert('Share link copied to clipboard!');
+      } catch (e) {
+        prompt('Copy this link:', url);
+      }
+    }
+
+    async function loadFromHash() {
+      try {
+        const hash = location.hash.slice(1);
+        
+        // Check if it's an existing note
+        const existingNote = notes.find(n => n.hash === hash);
+        if (existingNote) {
+          currentNoteId = existingNote.id;
+          localStorage.setItem('lastActiveNote', existingNote.id);
+          const type = existingNote.type || 'text';
+          switchMode(type);
+          await loadContent(hash, type);
+          renderNotesList();
+          updateTitle();
+          return;
+        }
+        
+        // Detect content type
+        const content = await decompress(hash);
+        let type = 'text';
+        if (content.startsWith('data:image/')) {
+          type = 'draw';
+        } else if (content.startsWith('{"columns":')) {
+          type = 'kanban';
+        }
+        
+        const note = createNote('Imported Note', type, true);
+        note.hash = hash;
+        saveNotes();
+        currentNoteId = note.id;
+        localStorage.setItem('lastActiveNote', note.id);
+        
+        switchMode(type);
+        await loadContent(hash, type);
+        renderNotesList();
+        updateTitle();
+      } catch (e) {
+        article.textContent = '';
+        article.focus();
+      }
+    }
+
+    function renderNotesList() {
+      if (notes.length === 0) {
+        notesList.innerHTML = `
+          <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+            <p style="font-size: 13px;">No notes yet.<br>Click + to create one.</p>
+          </div>
+        `;
+        return;
+      }
+
+      notesList.innerHTML = notes.map(note => {
+        const isActive = note.id === currentNoteId;
+        const preview = getPreview(note);
+        const typeLabel = (note.type || 'text').charAt(0).toUpperCase() + (note.type || 'text').slice(1);
+        return `
+          <div class="note-item ${isActive ? 'active' : ''}" data-id="${note.id}">
+            <div class="note-info">
+              <div class="note-name">${escapeHtml(note.name)}</div>
+              <div class="note-meta">
+                <span class="note-type">${typeLabel}</span>
+                <span>${escapeHtml(preview)}</span>
+              </div>
+            </div>
+            <div class="note-actions">
+              <button class="note-action-btn rename" data-id="${note.id}" title="Rename">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button class="note-action-btn share" data-id="${note.id}" title="Share">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
+              <button class="note-action-btn delete" data-id="${note.id}" title="Delete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+	notesList.querySelectorAll('.note-item').forEach(item => {
+	  item.addEventListener('click', e => {
+		if (!e.target.closest('.note-action-btn')) {
+		  const id = item.dataset.id;
+		  // Only select if different note
+		  if (id !== currentNoteId) {
+			selectNote(id);
+		  }
+		}
+	  });
+	});
+
+      notesList.querySelectorAll('.note-action-btn.delete').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          if (confirm('Delete this note?')) deleteNote(btn.dataset.id);
+        });
+      });
+
+      notesList.querySelectorAll('.note-action-btn.rename').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          openRenameModal(btn.dataset.id);
+        });
+      });
+
+      notesList.querySelectorAll('.note-action-btn.share').forEach(btn => {
+        btn.addEventListener('click', async e => {
+          e.stopPropagation();
+          await shareNote(btn.dataset.id);
+        });
+      });
+    }
+
+    function openRenameModal(id) {
+      renameNoteId = id;
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        renameInput.value = note.name;
+        renameModal.classList.add('active');
+        renameInput.focus();
+        renameInput.select();
+      }
+    }
+
+    function getPreview(note) {
+      if (!note.hash) return 'Empty';
+      const date = new Date(note.updatedAt);
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function updateTitle() {
+      const note = notes.find(n => n.id === currentNoteId);
+      document.title = note?.name || 'SharePad';
+    }
+
+    // Compression utilities
+    function toBase64URL(uint8Array) {
+      if (uint8Array.toBase64) {
+        return uint8Array.toBase64({ alphabet: 'base64url' });
+      }
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function fromBase64URL(b64) {
+      if (Uint8Array.fromBase64) {
+        return Uint8Array.fromBase64(b64, { alphabet: 'base64url' });
+      }
+      const padded = b64.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - b64.length % 4) % 4);
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    async function compress(string) {
+      const byteArray = new TextEncoder().encode(string);
+      const stream = new CompressionStream('deflate-raw');
+      const writer = stream.writable.getWriter();
+      writer.write(byteArray);
+      writer.close();
+      const buffer = await new Response(stream.readable).arrayBuffer();
+      return toBase64URL(new Uint8Array(buffer));
+    }
+
+    async function decompress(b64) {
+      const byteArray = fromBase64URL(b64);
+      const stream = new DecompressionStream('deflate-raw');
+      const writer = stream.writable.getWriter();
+      writer.write(byteArray);
+      writer.close();
+      const buffer = await new Response(stream.readable).arrayBuffer();
+      return new TextDecoder().decode(buffer);
+    }
+
+    // Utilities
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function debounce(ms, fn) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    function saveToDisk() {
+      const note = notes.find(n => n.id === currentNoteId);
+      const title = note?.name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').slice(0, 30) || 'note';
+      const now = new Date();
+      const timestamp = now.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+      
+      let blob, ext;
+      if (currentMode === 'text') {
+        blob = new Blob([article.textContent], { type: 'text/plain' });
+        ext = 'txt';
+      } else if (currentMode === 'draw') {
+        const link = document.createElement('a');
+        link.download = `${title}-${timestamp}.png`;
+        link.href = canvasData || drawCanvas.toDataURL();
+        link.click();
+        return;
+      } else if (currentMode === 'kanban') {
+        blob = new Blob([JSON.stringify(kanbanData, null, 2)], { type: 'application/json' });
+        ext = 'json';
+      }
+      
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title}-${timestamp}.${ext}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+
+  </script>
+</body>
+</html>
