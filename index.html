@@ -81,6 +81,12 @@
       letter-spacing: 0.05em;
       color: var(--text-muted);
     }
+			
+	.info a:link { color: gray;}
+	.info a:visited {  color: gray;}
+	.info a:hover {  color: hotpink;}
+	.info a:active {  color: hotpink;}
+
     .btn {
       background: transparent;
       border: 1px solid var(--border);
@@ -582,7 +588,7 @@
 	  <button class="btn btn-sm" id="downloadQRBtn">Download QR</button>
 	</div>
 		<div class="toolbar-spacer"></div>
-		<span class="">Ctrl+S / Command+S to export as file</span>
+		<span class="info">Made with ❤️ by <a href="https://github.com/dayeggpi" target="_blank">dayeggpi</a>&nbsp;&nbsp;|&nbsp;&nbsp;Ctrl+S / Command+S to export as file&nbsp;|&nbsp;</span>
 		<button class="btn btn-sm" id="themeToggle">Auto</button>
 		<button class="btn btn-sm" id="copylinkBtn">Share</button>
 	</div>
@@ -1421,8 +1427,11 @@ function draw(e) {
 	  } else if (type === 'draw') {
 		// Size canvas to fill available space
 		const wrapper = document.getElementById('canvasWrapper');
-		const w = Math.max(400, wrapper.clientWidth - 40);
-		const h = Math.max(300, wrapper.clientHeight - 40);
+		// draw canvas size
+		//const w = Math.max(400, wrapper.clientWidth - 40);
+		const w = 640;
+		//const h = Math.max(300, wrapper.clientHeight - 40);
+		const h = 480;
 		drawCanvas.width = w;
 		drawCanvas.height = h;
 		drawCtx.fillStyle = '#ffffff';
@@ -1648,7 +1657,7 @@ function draw(e) {
 
     function updateTitle() {
       const note = notes.find(n => n.id === currentNoteId);
-      document.title = note?.name || 'SharePad';
+      document.title = 'SharePad - '+note?.name || 'SharePad by dayeggpi';
     }
 
     // Compression utilities
